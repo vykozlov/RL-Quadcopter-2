@@ -1,4 +1,4 @@
-from keras import layers, models, optimizers
+from keras import layers, models, optimizers, regularizers
 from keras import backend as K
 
 import random
@@ -61,9 +61,11 @@ class Actor:
         states = layers.Input(shape=(self.state_size,), name='states')
 
         # Add hidden layers
-        net = layers.Dense(units=32, activation='relu')(states)
-        net = layers.Dense(units=64, activation='relu')(net)
-        net = layers.Dense(units=32, activation='relu')(net)
+        net = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(states)
+        net = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net)
+        net = layers.Dropout(0.5)(net)
+        net = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net)
+        net = layers.Dropout(0.5)(net)
 
         # Try different layer sizes, activations, add batch normalization, regularizers, etc.
 
@@ -85,7 +87,7 @@ class Actor:
         # Incorporate any additional losses here (e.g. from regularizers)
 
         # Define optimizer and training function
-        optimizer = optimizers.Adam()
+        optimizer = optimizers.Adam(lr=0.0002)
         updates_op = optimizer.get_updates(params=self.model.trainable_weights, loss=loss)
         self.train_fn = K.function(
             inputs=[self.model.input, action_gradients, K.learning_phase()],
@@ -117,12 +119,14 @@ class Critic:
         actions = layers.Input(shape=(self.action_size,), name='actions')
 
         # Add hidden layer(s) for state pathway
-        net_states = layers.Dense(units=32, activation='relu')(states)
-        net_states = layers.Dense(units=64, activation='relu')(net_states)
+        net_states = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(states)
+        net_states = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net_states)
+        net_states = layers.Dropout(0.5)(net_states)
 
         # Add hidden layer(s) for action pathway
-        net_actions = layers.Dense(units=32, activation='relu')(actions)
-        net_actions = layers.Dense(units=64, activation='relu')(net_actions)
+        net_actions = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(actions)
+        net_actions = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net_actions)
+        net_actions = layers.Dropout(0.5)(net_actions)
 
         # Try different layer sizes, activations, add batch normalization, regularizers, etc.
 
@@ -219,8 +223,11 @@ class DDPG():
         dones = np.array([e.done for e in experiences if e is not None]).astype(np.uint8).reshape(-1, 1)
         next_states = np.vstack([e.next_state for e in experiences if e is not None])
 
-        # clip rewards
-        rewards = np.clip(rewards, -1.0, 1.0)
+        ### clip rewards
+        #rewards = np.clip(rewards, -1., 1.)
+        ### normalize rewards?
+        norm = np.linalg.norm(rewards)
+        rewards = rewards / norm if norm > 0. else rewards
         
         # Get predicted next-state actions and Q values from target models
         #     Q_targets_next = critic_target(next_state, actor_target(next_state))
