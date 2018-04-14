@@ -177,13 +177,13 @@ class DDPG():
 
         # Noise process
         self.exploration_mu = 0.0
-        self.exploration_theta = 0.2 #0.15
-        self.exploration_sigma = 0.5 #0.2
+        self.exploration_theta = 0.1 #0.15
+        self.exploration_sigma = 0.1 #0.2
         self.noise = OUNoise(self.action_size, self.exploration_mu, self.exploration_theta, self.exploration_sigma)
 
         # Replay memory
-        self.buffer_size = 10000 #100000
-        self.batch_size = 32 #64
+        self.buffer_size = 100000
+        self.batch_size = 64
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
 
         # Algorithm parameters
