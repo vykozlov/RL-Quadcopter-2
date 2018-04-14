@@ -16,7 +16,7 @@ class TaskTakeOff():
         """
         # Simulation
         self.sim = PhysicsSim(init_pose, init_velocities, init_angle_velocities, runtime) 
-        self.action_repeat = 5
+        self.action_repeat = 10
 
         self.state_size = self.action_repeat * 6
         self.action_low = 0
@@ -33,7 +33,7 @@ class TaskTakeOff():
         reward = self.sim.v[2] #- 0.001*np.linalg.norm([self.sim.pose[:3] - self.target_pos])
         #if self.sim.v[2] < 0.:
         #    reward -= 10.
-        # push for "vertical start", i.e. not so much moving in (x,y) direction
+        #push for "vertical start", i.e. not so much moving in (x,y) direction
         #if np.linalg.norm([self.sim.pose[:2] - self.target_pos[:2]]) > 0.5*self.sim.dims[0]:
         #    reward -= 5.
         return reward
