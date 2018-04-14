@@ -29,13 +29,13 @@ class TaskTakeOff():
     def get_reward(self):
         """Uses current pose of sim to return reward."""
         #reward = 1.-.3*(abs(self.sim.pose[:3] - self.target_pos)).sum()
-        reward = 5. - 0.5*np.linalg.norm([self.sim.pose[:3] - self.target_pos])
-        #-self.sim.v[0] - self.sim.v[1] + self.sim.v[2]
+        #reward = 5. - 0.5*np.linalg.norm([self.sim.pose[2] - self.target_pos[2]]) + self.sim.v[2]
+        reward = self.sim.v[2] #- 0.001*np.linalg.norm([self.sim.pose[:3] - self.target_pos])
+        #if self.sim.v[2] < 0.:
+        #    reward -= 10.
         # push for "vertical start", i.e. not so much moving in (x,y) direction
-        if np.linalg.norm([self.sim.pose[:2] - self.target_pos[:2]]) > 0.5*self.sim.dims[0]:
-            reward -= 5.
-        #if self.sim.v[0] + self.sim.v[1] > 1.:
-        #    reward -= 2.
+        #if np.linalg.norm([self.sim.pose[:2] - self.target_pos[:2]]) > 0.5*self.sim.dims[0]:
+        #    reward -= 5.
         return reward
 
     def step(self, rotor_speeds):
@@ -46,11 +46,12 @@ class TaskTakeOff():
             done = self.sim.next_timestep(rotor_speeds) # update the sim pose and velocities
             reward += self.get_reward() 
             pose_all.append(self.sim.pose)
-        ## clip reward?
-        if reward > 1.:
-            reward = 1.
-        if reward < -1.:
-            reward = -1.            
+        ## clip reward? -> No
+        #if reward > 1.:
+        #    reward = 1.
+        #if reward < -1.:
+        #    reward = -1.
+        ###
         next_state = np.concatenate(pose_all)
         return next_state, reward, done
 
