@@ -28,15 +28,21 @@ class TaskTakeOff():
         self.dist_x = init_pose[0] - self.target_pos[0]
         self.dist_y = init_pose[1] - self.target_pos[1]        
         self.dist_z = init_pose[2] - self.target_pos[2]
+        self.dist_z0 = self.dist_z
+        self.runtime = runtime
         
     def get_reward(self):
         """Uses current pose of sim to return reward."""
         #reward = 1.-.3*(abs(self.sim.pose[:3] - self.target_pos)).sum()
         #reward = 5. - 0.5*np.linalg.norm([self.sim.pose[2] - self.target_pos[2]]) + self.sim.v[2]
         #reward = self.sim.v[2]*abs(self.sim.v[2])
-        #-self.dist_z = self.sim.pose[2] - self.target_pos[2]
+        self.dist_z = self.sim.pose[2] - self.target_pos[2]
         #-reward = -self.dist_z*self.dist_z
-        reward = np.tanh(self.sim.v[2])
+        #use velocity_z for reward but damp it
+        reward = np.tanh(10.*self.sim.v[2]) + 5.*np.exp(-abs(self.dist_z))
+        
+        #vel_z_max = self.dist_z0/self.runtime
+        #reward = 0.1 if self.sim.v[2] > vel_z_max else reward
 
         return reward
 
@@ -52,8 +58,6 @@ class TaskTakeOff():
         if min(self.sim.prop_wind_speed) > 0.:
             reward += 1.
             
-        if self.dist_z < 40. and self.dist_z > 0.:
-            reward += 2.
             
         ### clip reward? -> No
         #if reward > 1.:
