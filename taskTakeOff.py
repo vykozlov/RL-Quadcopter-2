@@ -25,9 +25,9 @@ class TaskTakeOff():
 
         # Goal
         self.target_pos = target_pos if target_pos is not None else np.array([0., 0., 10.])
-        #self.dist_x = init_pose[0] - self.target_pos[0]
-        #self.dist_y = init_pose[1] - self.target_pos[1]        
-        #self.dist_z = init_pose[2] - self.target_pos[2]
+        self.dist_x = init_pose[0] - self.target_pos[0]
+        self.dist_y = init_pose[1] - self.target_pos[1]        
+        self.dist_z = init_pose[2] - self.target_pos[2]
         
     def get_reward(self):
         """Uses current pose of sim to return reward."""
@@ -37,9 +37,7 @@ class TaskTakeOff():
         #-self.dist_z = self.sim.pose[2] - self.target_pos[2]
         #-reward = -self.dist_z*self.dist_z
         reward = np.tanh(self.sim.v[2])
-        #push for "vertical start", i.e. not so much moving in (x,y) direction
-        #if self.dist_x**2 + self.dist_y**2 > 5.:
-        #    reward -= 0.1
+
         return reward
 
     def step(self, rotor_speeds):
@@ -54,7 +52,10 @@ class TaskTakeOff():
         if min(self.sim.prop_wind_speed) > 0.:
             reward += 1.
             
-        ## clip reward? -> No
+        if self.dist_z < 40. and self.dist_z > 0.:
+            reward += 2.
+            
+        ### clip reward? -> No
         #if reward > 1.:
         #    reward = 1.
         #if reward < -1.:

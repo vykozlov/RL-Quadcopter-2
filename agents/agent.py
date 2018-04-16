@@ -51,6 +51,7 @@ class Actor:
         self.action_high = action_high
         self.action_range = self.action_high - self.action_low
         self.l2rega = 0.005
+        self.adamLRa = 0.005 
         self.dropa = 0.1
 
         # Initialize any other variables here
@@ -95,7 +96,7 @@ class Actor:
         # Incorporate any additional losses here (e.g. from regularizers)
 
         # Define optimizer and training function
-        optimizer = optimizers.Adam(lr=0.002) #for squared: 0.001
+        optimizer = optimizers.Adam(lr=self.adamLRa) #for squared: 0.001
         updates_op = optimizer.get_updates(params=self.model.trainable_weights, loss=loss)
         self.train_fn = K.function(
             inputs=[self.model.input, action_gradients, K.learning_phase()],
@@ -116,6 +117,7 @@ class Critic:
         self.state_size = state_size
         self.action_size = action_size
         self.l2regc = 0.005
+        self.adamLRc = 0.01 
         self.dropc = 0.1
 
         # Initialize any other variables here
@@ -161,7 +163,7 @@ class Critic:
         self.model = models.Model(inputs=[states, actions], outputs=Q_values)
 
         # Define optimizer and compile model for training with built-in loss function
-        optimizer = optimizers.Adam(lr=0.01) #for squared: 0.005
+        optimizer = optimizers.Adam(lr=self.adamLRc) #for squared: 0.005
         self.model.compile(optimizer=optimizer, loss='mse')
 
         # Compute action gradients (derivative of Q values w.r.t. to actions)
@@ -206,7 +208,7 @@ class DDPG():
 
         # Algorithm parameters
         self.gamma = 0.99  # discount factor
-        self.tau = 0.001  # for soft update of target parameters
+        self.tau = 0.00025  # for soft update of target parameters
 
     def reset_episode(self):
         self.noise.reset()
