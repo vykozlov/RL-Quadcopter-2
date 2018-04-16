@@ -23,7 +23,7 @@ class ReplayBuffer:
         e = self.experience(state, action, reward, next_state, done)
         self.memory.append(e)
 
-    def sample(self, batch_size=64):
+    def sample(self, batch_size=64): #64
         """Randomly sample a batch of experiences from memory."""
         return random.sample(self.memory, k=self.batch_size)
 
@@ -50,6 +50,8 @@ class Actor:
         self.action_low = action_low
         self.action_high = action_high
         self.action_range = self.action_high - self.action_low
+        self.l2rega = 0.005
+        self.dropa = 0.1
 
         # Initialize any other variables here
 
@@ -61,16 +63,22 @@ class Actor:
         states = layers.Input(shape=(self.state_size,), name='states')
 
         # Add hidden layers
-        net = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(states)
-        net = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net)
-        net = layers.Dropout(0.5)(net)
-        net = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net)
-        net = layers.Dropout(0.5)(net)
+        net = layers.Dense(units=32, activation='relu',
+                           kernel_initializer='glorot_uniform',
+                           kernel_regularizer=regularizers.l2(self.l2rega))(states)
+        #net = layers.Dropout(self.dropa)(net)        
+        net = layers.Dense(units=64, activation='relu',
+                           kernel_initializer='glorot_uniform',
+                           kernel_regularizer=regularizers.l2(self.l2rega))(net)
+        #net = layers.Dropout(self.dropa)(net)
+        net = layers.Dense(units=32, activation='relu', 
+                           kernel_initializer='glorot_uniform',
+                           kernel_regularizer=regularizers.l2(self.l2rega))(net)
 
         # Try different layer sizes, activations, add batch normalization, regularizers, etc.
 
         # Add final output layer with sigmoid activation
-        raw_actions = layers.Dense(units=self.action_size, activation='sigmoid',
+        raw_actions = layers.Dense(units=self.action_size, activation='sigmoid', #sigmoid
             name='raw_actions')(net)
 
         # Scale [0, 1] output for each action dimension to proper range
@@ -87,7 +95,7 @@ class Actor:
         # Incorporate any additional losses here (e.g. from regularizers)
 
         # Define optimizer and training function
-        optimizer = optimizers.Adam() #0.0002
+        optimizer = optimizers.Adam(lr=0.002) #for squared: 0.001
         updates_op = optimizer.get_updates(params=self.model.trainable_weights, loss=loss)
         self.train_fn = K.function(
             inputs=[self.model.input, action_gradients, K.learning_phase()],
@@ -107,6 +115,8 @@ class Critic:
         """
         self.state_size = state_size
         self.action_size = action_size
+        self.l2regc = 0.005
+        self.dropc = 0.1
 
         # Initialize any other variables here
 
@@ -119,14 +129,22 @@ class Critic:
         actions = layers.Input(shape=(self.action_size,), name='actions')
 
         # Add hidden layer(s) for state pathway
-        net_states = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(states)
-        net_states = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net_states)
-        net_states = layers.Dropout(0.5)(net_states)
+        net_states = layers.Dense(units=32, activation='relu', 
+                                  kernel_initializer='glorot_uniform',
+                                  kernel_regularizer=regularizers.l2(self.l2regc))(states)
+        #net_states = layers.Dropout(self.dropc)(net_states)        
+        net_states = layers.Dense(units=64, activation='relu', 
+                                  kernel_initializer='glorot_uniform',
+                                  kernel_regularizer=regularizers.l2(self.l2regc))(net_states)
 
         # Add hidden layer(s) for action pathway
-        net_actions = layers.Dense(units=32, activation='relu', kernel_regularizer=regularizers.l2(0.01))(actions)
-        net_actions = layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(0.01))(net_actions)
-        net_actions = layers.Dropout(0.5)(net_actions)
+        net_actions = layers.Dense(units=32, activation='relu', 
+                                   kernel_initializer='glorot_uniform',
+                                   kernel_regularizer=regularizers.l2(self.l2regc))(actions)
+        #net_actions = layers.Dropout(self.dropc)(net_actions)        
+        net_actions = layers.Dense(units=64, activation='relu', 
+                                   kernel_initializer='glorot_uniform',
+                                   kernel_regularizer=regularizers.l2(self.l2regc))(net_actions)
 
         # Try different layer sizes, activations, add batch normalization, regularizers, etc.
 
@@ -143,7 +161,7 @@ class Critic:
         self.model = models.Model(inputs=[states, actions], outputs=Q_values)
 
         # Define optimizer and compile model for training with built-in loss function
-        optimizer = optimizers.Adam()
+        optimizer = optimizers.Adam(lr=0.01) #for squared: 0.005
         self.model.compile(optimizer=optimizer, loss='mse')
 
         # Compute action gradients (derivative of Q values w.r.t. to actions)
@@ -177,18 +195,18 @@ class DDPG():
 
         # Noise process
         self.exploration_mu = 0.0
-        self.exploration_theta = 0.1 #0.15
-        self.exploration_sigma = 0.1 #0.2
+        self.exploration_theta = 0.15 #0.15
+        self.exploration_sigma = 0.2 #0.2
         self.noise = OUNoise(self.action_size, self.exploration_mu, self.exploration_theta, self.exploration_sigma)
 
         # Replay memory
-        self.buffer_size = 100000
-        self.batch_size = 64
+        self.buffer_size = 1000000
+        self.batch_size = 32
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
 
         # Algorithm parameters
         self.gamma = 0.99  # discount factor
-        self.tau = 0.01  # for soft update of target parameters
+        self.tau = 0.001  # for soft update of target parameters
 
     def reset_episode(self):
         self.noise.reset()
@@ -223,8 +241,6 @@ class DDPG():
         dones = np.array([e.done for e in experiences if e is not None]).astype(np.uint8).reshape(-1, 1)
         next_states = np.vstack([e.next_state for e in experiences if e is not None])
 
-        ### clip rewards
-        #rewards = np.clip(rewards, -1., 1.)
         ### normalize rewards?
         norm = np.linalg.norm(rewards)
         rewards = rewards / norm if norm > 0. else rewards
